@@ -1,0 +1,6 @@
+{
+    "learning_rate": 0.001,
+    "gamma": 0.99,
+    "epsilon_decay": 0.995
+  }
+  
