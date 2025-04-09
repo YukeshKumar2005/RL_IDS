@@ -26,7 +26,7 @@ columns = [
     "dst_host_diff_srv_rate","dst_host_same_src_port_rate","dst_host_srv_diff_host_rate",
     "dst_host_serror_rate","dst_host_srv_serror_rate","dst_host_rerror_rate","dst_host_srv_rerror_rate","label","difficulty_level"
 ]
-df = pd.read_csv("KDDTrain+.csv", names=columns)
+df = pd.read_csv("data/KDDTrain+.csv", names=columns)
 df.drop(['difficulty_level'], axis=1, inplace=True)
 df['label'] = df['label'].apply(lambda x: 0 if x == 'normal' else 1)
 
