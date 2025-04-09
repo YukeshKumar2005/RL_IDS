@@ -44,7 +44,7 @@ class DQN(nn.Module):
 # --- Load Data ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("data/processed_nsl_kdd.csv")
+    df = pd.read_csv("data/KDDTrain+.csv")
     X = df.drop(columns=["label"]).values
     y = df["label"].values
     return X, y
