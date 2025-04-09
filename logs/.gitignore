@@ -1,0 +1,35 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*.so
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs and runtime files
+logs/*.txt
+logs/*.log
+
+# Model weights
+models/*.pt
+models/*.pth
+
+# Data files (optional - comment if you want to keep them tracked)
+data/*.csv
+data/*.zip
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
+
+# Virtual environments
+env/
+venv/
+ENV/
+*.env
+
+# Streamlit specific
+.streamlit/config.toml
