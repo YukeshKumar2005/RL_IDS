@@ -81,13 +81,11 @@ memory = deque(maxlen=10000)
 os.makedirs("logs", exist_ok=True)
 os.makedirs("models", exist_ok=True)
 
-
 def get_action(state):
     if random.random() < epsilon:
         return random.randint(0, 1)
     with torch.no_grad():
         return torch.argmax(policy_net(torch.tensor(state, dtype=torch.float32))).item()
-
 
 def replay():
     if len(memory) < batch_size:
@@ -107,30 +105,30 @@ def replay():
         loss.backward()
         optimizer.step()
 
-# === 5. Training ===
-rewards = []
-with open("logs/training_log.txt", "w") as f_log:
-    for episode in range(10):
-        idx = np.random.permutation(len(X_train))
-        X_shuffled = X_train[idx]
-        y_shuffled = y_train.values[idx]
-        total_reward = 0
-        for i in range(len(X_shuffled)):
-            state = X_shuffled[i]
-            label = y_shuffled[i]
-            action = get_action(state)
-            reward = 1 if action == label else -1
-            next_state = X_shuffled[i+1] if i+1 < len(X_shuffled) else state
-            done = i+1 >= len(X_shuffled)
-            memory.append((state, action, reward, next_state, done))
-            replay()
-            total_reward += reward
-        target_net.load_state_dict(policy_net.state_dict())
-        rewards.append(total_reward)
-        f_log.write(f"Episode {episode+1}, Total Reward: {total_reward}\n")
-        torch.save(policy_net.state_dict(), f"models/dqn_model_ep{episode+1}.pt")
+def train_model():
+    rewards = []
+    with open("logs/training_log.txt", "w") as f_log:
+        for episode in range(10):
+            idx = np.random.permutation(len(X_train))
+            X_shuffled = X_train[idx]
+            y_shuffled = y_train.values[idx]
+            total_reward = 0
+            for i in range(len(X_shuffled)):
+                state = X_shuffled[i]
+                label = y_shuffled[i]
+                action = get_action(state)
+                reward = 1 if action == label else -1
+                next_state = X_shuffled[i+1] if i+1 < len(X_shuffled) else state
+                done = i+1 >= len(X_shuffled)
+                memory.append((state, action, reward, next_state, done))
+                replay()
+                total_reward += reward
+            target_net.load_state_dict(policy_net.state_dict())
+            rewards.append(total_reward)
+            f_log.write(f"Episode {episode+1}, Total Reward: {total_reward}\n")
+            torch.save(policy_net.state_dict(), f"models/dqn_model_ep{episode+1}.pt")
+    return rewards
 
-# === 6. Evaluation ===
 def evaluate_model():
     y_pred = []
     y_true = []
@@ -151,11 +149,23 @@ def evaluate_model():
 
     return acc, y_true, y_pred
 
-accuracy, y_true, y_pred = evaluate_model()
-
-# === 7. Streamlit Dashboard ===
+# === 5. Streamlit UI ===
 st.title("\U0001F6E1️ RL-Based Intrusion Detection System")
 st.write("This dashboard uses a DQN agent to classify real-time network packets.")
+
+rewards = []
+y_true, y_pred = [], []
+accuracy = 0.0
+
+if st.button("Train Model"):
+    with st.spinner("Training the model..."):
+        rewards = train_model()
+    st.success("Training complete!")
+
+if st.button("Evaluate Model"):
+    with st.spinner("Evaluating..."):
+        accuracy, y_true, y_pred = evaluate_model()
+    st.success(f"Accuracy: {accuracy*100:.2f}%")
 
 if st.button("Run Real-Time Detection"):
     with open("logs/realtime_decisions.log", "w") as f_log:
@@ -168,31 +178,29 @@ if st.button("Run Real-Time Detection"):
             f_log.write(f"{datetime.datetime.now()}: {decision}\n")
             time.sleep(0.5)
 
-st.subheader("Training Rewards Over Episodes")
-st.line_chart(rewards)
+if rewards:
+    st.subheader("Training Rewards Over Episodes")
+    st.line_chart(rewards)
 
-st.success(f"Final DQN Accuracy on Test Set: {accuracy*100:.2f}%")
+if y_true and y_pred:
+    st.subheader("Confusion Matrix")
+    fig, ax = plt.subplots()
+    sns.heatmap(confusion_matrix(y_true, y_pred), annot=True, fmt='d', cmap='Blues', ax=ax)
+    ax.set_xlabel('Predicted')
+    ax.set_ylabel('Actual')
+    st.pyplot(fig)
 
-# === 8. Confusion Matrix Visualization ===
-st.subheader("Confusion Matrix")
-fig, ax = plt.subplots()
-sns.heatmap(confusion_matrix(y_true, y_pred), annot=True, fmt='d', cmap='Blues', ax=ax)
-ax.set_xlabel('Predicted')
-ax.set_ylabel('Actual')
-st.pyplot(fig)
-
-# === 9. Real-Time Log Viewer ===
+# === 6. Log Viewer ===
 st.subheader("Real-Time Logs")
 if os.path.exists("logs/realtime_decisions.log"):
     with open("logs/realtime_decisions.log", "r") as f:
         logs = f.read()
     st.text_area("Log Output", logs, height=200)
 
-# === 10. Custom File Upload for Testing ===
+# === 7. File Upload for Custom Test ===
 st.subheader("Upload Custom Network CSV")
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
 if uploaded_file is not None:
     df_custom = pd.read_csv(uploaded_file)
     st.write("First 5 rows of your data:")
     st.write(df_custom.head())
-    # Note: You can extend this to run predictions as well
