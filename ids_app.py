@@ -8,7 +8,9 @@ import random
 from collections import deque
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, auc
+import plotly.graph_objects as go
+import plotly.express as px
 import os
 
 # Set page config
@@ -44,12 +46,16 @@ class DQN(nn.Module):
 # --- Load Data ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("data/KDDTrain+.csv")
-    X = df.drop(columns=["label"]).values
-    y = df["label"].values
+    df = pd.read_csv("processed_nsl_kdd.csv")
+    X = df.drop(columns=["label"])
+    y = df["label"]
     return X, y
 
 X, y = load_data()
+feature_names = X.columns
+X = X.values
+
+y = y.values
 
 # Train-Test Split
 split = int(0.8 * len(X))
@@ -74,7 +80,7 @@ def get_action(state):
 
 def replay():
     if len(memory) < BATCH_SIZE:
-        return
+        return 0
     batch = random.sample(memory, BATCH_SIZE)
     states, actions, rewards, next_states, dones = zip(*batch)
 
@@ -92,25 +98,34 @@ def replay():
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
+    return loss.item()
 
 def evaluate_model():
     y_pred = []
+    probs = []
     for i in range(len(X_test)):
         state = X_test[i]
-        action = get_action(state)
-        y_pred.append(action)
+        with torch.no_grad():
+            state_tensor = torch.FloatTensor(state)
+            q_vals = policy_net(state_tensor)
+            probs.append(q_vals.softmax(0).numpy()[1])
+            y_pred.append(torch.argmax(q_vals).item())
     accuracy = accuracy_score(y_test, y_pred)
-    return accuracy, y_test, y_pred
+    fpr, tpr, _ = roc_curve(y_test, probs)
+    roc_auc = auc(fpr, tpr)
+    return accuracy, y_test, y_pred, fpr, tpr, roc_auc
 
 # --- UI Components ---
 if st.button("Train Model"):
     with st.spinner("Training the model..."):
         rewards = []
-        for episode in range(10):
+        losses = []
+        for episode in range(5):
             idx = np.random.permutation(len(X_train))
             X_shuffled = X_train[idx]
             y_shuffled = y_train[idx]
             total_reward = 0
+            total_loss = 0
             for i in range(len(X_shuffled)):
                 state = X_shuffled[i]
                 label = y_shuffled[i]
@@ -119,30 +134,56 @@ if st.button("Train Model"):
                 next_state = X_shuffled[i+1] if i+1 < len(X_shuffled) else state
                 done = i+1 >= len(X_shuffled)
                 memory.append((state, action, reward, next_state, done))
-                replay()
+                total_loss += replay()
                 total_reward += reward
 
             target_net.load_state_dict(policy_net.state_dict())
             rewards.append(total_reward)
-            st.write(f"📈 Episode {episode+1} Reward: {total_reward}")
+            losses.append(total_loss / len(X_shuffled))
+            st.write(f"📈 Episode {episode+1} Reward: {total_reward}, Avg Loss: {losses[-1]:.4f}")
             torch.save(policy_net.state_dict(), f"models/dqn_model_ep{episode+1}.pt")
 
         # Accuracy
-        accuracy, y_true, y_pred = evaluate_model()
+        accuracy, y_true, y_pred, fpr, tpr, roc_auc = evaluate_model()
         st.success(f"✅ Training complete! Accuracy: {accuracy*100:.2f}%")
 
-        # Plot training rewards
+        # Rewards Line
         st.subheader("Training Rewards Over Episodes")
-        st.line_chart(rewards)
+        fig1 = px.line(y=rewards, title="Reward per Episode", labels={"x": "Episode", "y": "Reward"})
+        st.plotly_chart(fig1)
+
+        # Loss Line
+        st.subheader("Training Loss Over Episodes")
+        fig2 = px.line(y=losses, title="Loss per Episode", labels={"x": "Episode", "y": "Loss"})
+        st.plotly_chart(fig2)
 
         # Confusion Matrix
         st.subheader("Confusion Matrix")
-        fig, ax = plt.subplots()
-        sns.heatmap(confusion_matrix(y_true, y_pred), annot=True, fmt='d', cmap='Blues', ax=ax)
-        ax.set_xlabel('Predicted')
-        ax.set_ylabel('Actual')
-        st.pyplot(fig)
+        fig3, ax3 = plt.subplots()
+        sns.heatmap(confusion_matrix(y_true, y_pred), annot=True, fmt='d', cmap='Purples', ax=ax3)
+        ax3.set_xlabel('Predicted')
+        ax3.set_ylabel('Actual')
+        st.pyplot(fig3)
 
-# --- Upload CSV Placeholder ---
+        # ROC Curve
+        st.subheader("ROC Curve")
+        fig4 = go.Figure()
+        fig4.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name=f'AUC = {roc_auc:.2f}'))
+        fig4.add_shape(type='line', line=dict(dash='dash'), x0=0, x1=1, y0=0, y1=1)
+        fig4.update_layout(title='ROC Curve', xaxis_title='False Positive Rate', yaxis_title='True Positive Rate')
+        st.plotly_chart(fig4)
+
+# --- Upload CSV for Real-time Classification ---
 st.markdown("### 📂 Upload Custom Network CSV")
-st.file_uploader("Upload CSV File", type=["csv"])
+file = st.file_uploader("Upload CSV File", type=["csv"])
+if file:
+    df_upload = pd.read_csv(file)
+    if set(feature_names).issubset(df_upload.columns):
+        st.success("Valid file uploaded.")
+        uploaded_X = df_upload[feature_names].values
+        predictions = [get_action(state) for state in uploaded_X]
+        df_upload['Prediction'] = predictions
+        st.dataframe(df_upload)
+        st.bar_chart(df_upload['Prediction'].value_counts())
+    else:
+        st.error("CSV does not contain required features.")
