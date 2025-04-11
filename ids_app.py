@@ -46,7 +46,7 @@ class DQN(nn.Module):
 # --- Load Data ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("processed_nsl_kdd.csv")
+    df = pd.read_csv("processed_nsl_kdd.csv.gz",compression='gzip')
     X = df.drop(columns=["label"])
     y = df["label"]
     return X, y
