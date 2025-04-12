@@ -1,21 +1,26 @@
- 🛡️ Reinforcement Learning-Based Intrusion Detection System (RL-IDS)
+# Reinforcement Learning-Based Intrusion Detection and Preemptive Defense System with Context-Aware Threat Analysis
 
-This project is a Streamlit web application that demonstrates a reinforcement learning-based intrusion detection and preemptive defense system using the NSL-KDD dataset.
+## Overview
+This project implements a **Reinforcement Learning-Based Intrusion Detection and Preemptive Defense System** that uses Deep Q-Networks (DQN) for threat detection and proactive defense strategies. The system is designed to detect network intrusions and take preemptive defense actions based on context-aware analysis. The model is trained using the **NSL-KDD** dataset and can be deployed for real-time packet classification.
 
----
+The system leverages **Reinforcement Learning (RL)** for dynamic decision-making and **Scapy** for capturing and analyzing network packets in real-time.
 
- 📌 Features
+## Key Features
+- **Reinforcement Learning (DQN):** The model uses Deep Q-Networks (DQN) to learn the optimal policy for detecting network intrusions and triggering defense actions.
+- **Intrusion Detection:** Detects various types of intrusions in network traffic, such as DoS, R2L, U2R, and Probe.
+- **Real-Time Packet Classification with Scapy:** The system uses **Scapy** to capture live network packets and classify them as **ALLOW** or **BLOCK** based on the learned model.
+- **Context-Aware Features:** Extracts relevant features from network packets (e.g., source IP, destination IP, time of access) to make classification decisions.
+- **Model Training and Evaluation:** Includes training of the DQN model, performance evaluation with confusion matrices, accuracy, and ROC curves.
+- **Streamlit Dashboard:** A user-friendly **Streamlit** dashboard for visualizing training progress, evaluating model performance, and monitoring real-time packet classification.
 
-- Uses **Deep Q-Learning (DQN)** for learning attack patterns.
-- Performs **context-aware threat detection** using custom reward logic.
-- Visualizes results in an interactive **Streamlit dashboard**.
-- Supports **log management**, **custom uploads**, and **live predictions**.
-
----
-
- 📂 Project Structure
-├── data/ # Contains NSL-KDD dataset files │ ├── KDDTrain+.csv │ └── KDDTest+.csv ├── logs/ # Contains runtime logs (git-kept) │ └── .gitkeep ├── rl_ids_app.py # Main Streamlit application file ├── model/ # (Optional) Pretrained model storage ├── utils/ # Helper functions for preprocessing, RL, etc. ├── requirements.txt # Python dependencies └── README.md # This file
-## 🚀 How to Run
+## Project Structure
+- `data/` : Contains the **NSL-KDD** dataset and any preprocessed data.
+- `models/` : Code for training the DQN model and related files.
+- `streamlit_dashboard/` : Streamlit-based dashboard for real-time visualizations and monitoring.
+- `src/` : Core source code for RL algorithms, model training, packet capture, and evaluation.
+- `logs/` : Logs for real-time packet classification decisions.
+- `requirements.txt` : Required Python libraries and dependencies for the project.
+- `README.md` : Project documentation and instructions.
 
 1. **Clone the repository**
 
